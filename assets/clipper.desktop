@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Clipper
+GenericName=Twitch Clip Downloader
+Comment=Download Twitch Clips in original available quality
+Exec=clipper
+Icon=clipper
+Terminal=false
+Type=Application
+Categories=AudioVideo;Network;
+StartupNotify=true

@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install GTK build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libgtk-4-dev \
+            libadwaita-1-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Create source archive
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          git archive --format=tar.gz --prefix="clipper-${VERSION}/" "${GITHUB_SHA}" \
+            -o "dist/clipper-${VERSION}-source.tar.gz"
+          sha256sum "dist/clipper-${VERSION}-source.tar.gz" \
+            > "dist/clipper-${VERSION}-source.tar.gz.sha256"
+
+      - name: Upload source release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          files: |
+            dist/clipper-*-source.tar.gz
+            dist/clipper-*-source.tar.gz.sha256

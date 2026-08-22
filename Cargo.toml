@@ -1,0 +1,23 @@
+[package]
+name = "clipper"
+version = "1.2.0"
+edition = "2024"
+rust-version = "1.92"
+license = "MIT"
+description = "Minimal native GTK4/libadwaita Twitch Clip downloader with automatic URL queueing"
+
+[dependencies]
+adw = { package = "libadwaita", version = "0.9", features = ["v1_4"] }
+gtk = { package = "gtk4", version = "0.11", features = ["v4_10"] }
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

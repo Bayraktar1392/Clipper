@@ -1,0 +1,33 @@
+# Maintainer: YOUR NAME <YOUR EMAIL>
+pkgname=clipper
+pkgver=1.2.0
+pkgrel=1
+pkgdesc='Minimal native GTK4/libadwaita Twitch Clip downloader'
+arch=('x86_64')
+url='https://github.com/YOUR_GITHUB_USERNAME/clipper'
+license=('MIT')
+depends=('gtk4' 'libadwaita' 'yt-dlp' 'ffmpeg')
+makedepends=('rust' 'pkgconf')
+source=("https://github.com/YOUR_GITHUB_USERNAME/clipper/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "${srcdir}/${pkgname}-${pkgver}"
+    cargo build --release
+}
+
+package() {
+    cd "${srcdir}/${pkgname}-${pkgver}"
+
+    install -Dm755 "target/release/${pkgname}" \
+        "${pkgdir}/usr/bin/${pkgname}"
+
+    install -Dm644 assets/clipper.desktop \
+        "${pkgdir}/usr/share/applications/clipper.desktop"
+
+    install -Dm644 assets/icons/hicolor/scalable/apps/clipper.svg \
+        "${pkgdir}/usr/share/icons/hicolor/scalable/apps/clipper.svg"
+
+    install -Dm644 LICENSE \
+        "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

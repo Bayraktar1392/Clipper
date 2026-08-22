@@ -1,0 +1,17 @@
+pkgbase = clipper
+	pkgdesc = Minimal native GTK4/libadwaita Twitch Clip downloader
+	pkgver = 1.2.0
+	pkgrel = 1
+	url = https://github.com/YOUR_GITHUB_USERNAME/clipper
+	arch = x86_64
+	license = MIT
+	makedepends = rust
+	makedepends = pkgconf
+	depends = gtk4
+	depends = libadwaita
+	depends = yt-dlp
+	depends = ffmpeg
+	source = https://github.com/YOUR_GITHUB_USERNAME/clipper/archive/refs/tags/v1.2.0.tar.gz
+	sha256sums = SKIP
+
+pkgname = clipper
