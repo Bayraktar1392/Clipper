@@ -1,0 +1,120 @@
+/*
+ * Clipper — a minimal visual layer over libadwaita.
+ *
+ * Deliberately sober: no glow, no box shadows, no fake elevation and no
+ * extra outlines — every surface falls back to the user's own light/dark
+ * theme and accent color. Only a few shapes plus the motion cues below
+ * are defined here.
+ */
+
+/* ── Input ──────────────────────────────────────────────── */
+.clipper-input-card {
+  /* `.card` supplies the backdrop, rounding and border. */
+}
+
+.clipper-input-card textview {
+  background-color: transparent;
+  color: @fg_color;
+  font-size: 14px;
+  caret-color: @accent_bg_color;
+}
+
+/* ── Save-to row ────────────────────────────────────────── */
+.clipper-folder-row {
+  padding: 6px 12px;
+}
+
+.clipper-folder-row label {
+  font-size: 12.5px;
+}
+
+/* ── Queue rows ─────────────────────────────────────────── */
+.clipper-list {
+  background-color: transparent;
+}
+
+.clipper-list > row {
+  animation: row-in 180ms ease-out;
+}
+
+@keyframes row-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.clipper-icon-chip.twitch {
+  color: #9146ff;
+}
+
+.clipper-icon-chip.youtube {
+  color: #ff0000;
+}
+
+.clipper-chip {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clipper-chip.success {
+  animation: status-pop 250ms ease-out;
+}
+
+@keyframes status-pop {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.clipper-chip.error {
+  animation: status-shake 300ms ease-out;
+}
+
+@keyframes status-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+.clipper-row-remove image {
+  color: alpha(@fg_color, 0.45);
+}
+
+.clipper-row-remove:hover image {
+  color: @error_color;
+}
+
+/* ── Empty state ────────────────────────────────────────── */
+.clipper-empty-state {
+  animation: empty-in 300ms ease-out;
+}
+
+@keyframes empty-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Download button ────────────────────────────────────── */
+.clipper-download-button {
+  /* `.suggested-action` / `.destructive-action` provide color and shape. */
+}
+
+/* ── Aggregate progress + status ────────────────────────── */
+.clipper-progress trough {
+  min-height: 6px;
+  border-radius: 999px;
+}
+
+.clipper-progress progress {
+  min-height: 6px;
+  border-radius: 999px;
+  background-color: @accent_bg_color;
+}
+
+.clipper-progress text {
+  font-size: 12px;
+}
+
+.clipper-status {
+  font-size: 12.5px;
+  color: alpha(@fg_color, 0.6);
+  margin-top: 6px;
+}

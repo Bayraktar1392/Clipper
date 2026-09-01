@@ -1,4 +1,6 @@
+use crate::{config, link::url::Source};
 use adw::{Application, ApplicationWindow, HeaderBar, ToolbarView, prelude::*};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 /// Visual state of a single queue row's status chip.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,8 +16,10 @@ pub enum RowState {
 /// these methods instead of walking child widgets.
 pub struct QueueRow {
     pub row: adw::ActionRow,
-    status: gtk::Label,
+    pub remove: gtk::Button,
+    pub status: gtk::Label,
     url: String,
+    reveal: Rc<RefCell<Option<PathBuf>>>,
 }
 
 impl QueueRow {
@@ -33,13 +37,7 @@ impl QueueRow {
         });
     }
 
-    /// Temporarily replaces the subtitle (the clip URL) with live transfer
-    /// stats while a download is in progress.
-    pub fn set_transfer(&self, text: &str) {
-        self.row.set_subtitle(text);
-    }
-
-    /// Restores the subtitle back to the clip URL once a download finishes.
+    /// Restores the subtitle back to the clip URL.
     pub fn reset_subtitle(&self) {
         self.row.set_subtitle(&self.url);
     }
@@ -48,6 +46,13 @@ impl QueueRow {
     /// row stays compact while the detail is still one hover away.
     pub fn set_tooltip(&self, detail: &str) {
         self.row.set_tooltip_text(Some(detail));
+    }
+
+    /// Makes the row clickable from this point on: clicking it reveals the
+    /// given file in the system file manager.
+    pub fn set_reveal_target(&self, path: PathBuf) {
+        *self.reveal.borrow_mut() = Some(path);
+        self.row.set_activatable(true);
     }
 
     /// Attaches the failure reason as a tooltip, the same way `set_tooltip`
@@ -61,27 +66,30 @@ impl QueueRow {
 
 pub struct Ui {
     pub url_view: gtk::TextView,
-    pub placeholder: gtk::Label,
     pub download_button: gtk::Button,
     pub download_label: gtk::Label,
     pub spinner: gtk::Spinner,
     pub process_stack: gtk::Stack,
     pub progress: gtk::ProgressBar,
+    pub status: gtk::Label,
     pub hint: gtk::Label,
     pub queue: gtk::ListBox,
     pub view_stack: gtk::Stack,
     pub window_title: adw::WindowTitle,
     pub toast_overlay: adw::ToastOverlay,
+    pub folder_button: gtk::Button,
+    pub folder_label: gtk::Label,
 }
 
 pub fn build(app: &Application) -> Ui {
     let window = ApplicationWindow::builder()
         .application(app)
         .title("Clipper")
-        .default_width(560)
-        .default_height(660)
+        .default_width(580)
+        .default_height(680)
         .resizable(true)
         .build();
+    window.add_css_class("clipper-window");
 
     let window_title = adw::WindowTitle::new("Clipper", "");
     let header = HeaderBar::new();
@@ -98,10 +106,10 @@ pub fn build(app: &Application) -> Ui {
 
     let root = gtk::Box::new(gtk::Orientation::Vertical, 12);
 
-    // Input: a plain card, no label, no hints — a placeholder overlay
-    // carries the instructions until the user starts typing.
+    // Input: a plain card, no label, no hints.
     let input_card = gtk::Box::new(gtk::Orientation::Vertical, 0);
     input_card.add_css_class("card");
+    input_card.add_css_class("clipper-input-card");
 
     let url_view = gtk::TextView::new();
     url_view.set_wrap_mode(gtk::WrapMode::WordChar);
@@ -111,18 +119,27 @@ pub fn build(app: &Application) -> Ui {
     url_view.set_top_margin(10);
     url_view.set_bottom_margin(10);
 
-    let placeholder = gtk::Label::new(Some("Paste Twitch Clip URLs, one or many"));
-    placeholder.add_css_class("dim-label");
-    placeholder.set_halign(gtk::Align::Start);
-    placeholder.set_valign(gtk::Align::Start);
-    placeholder.set_margin_top(10);
-    placeholder.set_margin_start(14);
-    placeholder.set_can_target(false);
-
-    let input_overlay = gtk::Overlay::new();
-    input_overlay.set_child(Some(&url_view));
-    input_overlay.add_overlay(&placeholder);
-    input_card.append(&input_overlay);
+    // A slim "save to" row under the input field: shows the current
+    // download directory and lets the user pick a new one via a folder
+    // chooser dialog.
+    let folder_icon2 = gtk::Image::from_icon_name("folder-download-symbolic");
+    folder_icon2.set_pixel_size(14);
+    folder_icon2.add_css_class("dim-label");
+    let folder_label = gtk::Label::new(Some("..."));
+    folder_label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    folder_label.add_css_class("dim-label");
+    folder_label.set_hexpand(true);
+    folder_label.set_xalign(0.0);
+    let folder_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    folder_row.append(&folder_icon2);
+    folder_row.append(&folder_label);
+    let folder_button = gtk::Button::new();
+    folder_button.set_child(Some(&folder_row));
+    folder_button.set_halign(gtk::Align::Fill);
+    folder_button.set_css_classes(&["flat", "clipper-folder-row"]);
+    folder_button.set_tooltip_text(Some("Choose a download directory"));
+    input_card.append(&url_view);
+    input_card.append(&folder_button);
     root.append(&input_card);
 
     let hint = gtk::Label::new(None);
@@ -137,17 +154,19 @@ pub fn build(app: &Application) -> Ui {
     // Files uses for an empty folder versus a populated one.
     let status_page = adw::StatusPage::builder()
         .icon_name("video-x-generic-symbolic")
-        .title("No clips queued")
-        .description("Paste one or more Twitch Clip URLs above to add them here.")
+        .title("No links queued")
+        .description("Paste one or more Twitch Clip or YouTube links above to add them here.")
         .build();
     status_page.set_vexpand(true);
     status_page.add_css_class("compact");
+    status_page.add_css_class("clipper-empty-state");
 
     let scroller = gtk::ScrolledWindow::new();
     scroller.set_vexpand(true);
     let queue = gtk::ListBox::new();
     queue.set_selection_mode(gtk::SelectionMode::None);
     queue.add_css_class("boxed-list");
+    queue.add_css_class("clipper-list");
     scroller.set_child(Some(&queue));
 
     let view_stack = gtk::Stack::new();
@@ -162,6 +181,7 @@ pub fn build(app: &Application) -> Ui {
     download_button.set_hexpand(true);
     download_button.add_css_class("suggested-action");
     download_button.add_css_class("pill");
+    download_button.add_css_class("clipper-download-button");
     let icon = gtk::Image::from_icon_name("folder-download-symbolic");
     let spinner = gtk::Spinner::new();
     let process_stack = gtk::Stack::new();
@@ -182,7 +202,15 @@ pub fn build(app: &Application) -> Ui {
     progress.set_show_text(true);
     progress.set_hexpand(true);
     progress.set_visible(false);
+    progress.add_css_class("clipper-progress");
     root.append(&progress);
+
+    let status = gtk::Label::new(None);
+    status.set_halign(gtk::Align::Center);
+    status.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    status.add_css_class("clipper-status");
+    status.set_visible(false);
+    root.append(&status);
 
     clamp.set_child(Some(&root));
 
@@ -198,35 +226,69 @@ pub fn build(app: &Application) -> Ui {
 
     Ui {
         url_view,
-        placeholder,
         download_button,
         download_label: button_label,
         spinner,
         process_stack,
         progress,
+        status,
         hint,
         queue,
         view_stack,
         window_title,
         toast_overlay,
+        folder_button,
+        folder_label,
     }
 }
 
-pub fn queue_row(title: &str, url: &str) -> QueueRow {
-    let icon = gtk::Image::from_icon_name("video-x-generic-symbolic");
-    icon.add_css_class("dim-label");
+pub fn queue_row(title: &str, url: &str, source: Source) -> QueueRow {
+    let (icon_name, source_class) = match source {
+        Source::Twitch => ("video-x-generic-symbolic", "twitch"),
+        Source::YouTube => ("media-playback-start-symbolic", "youtube"),
+    };
+
+    let icon = gtk::Image::from_icon_name(icon_name);
+    icon.set_pixel_size(16);
+    icon.add_css_class("clipper-icon-chip");
+    icon.add_css_class(source_class);
 
     let status = gtk::Label::new(Some("Waiting"));
-    status.add_css_class("caption");
+    status.add_css_class("clipper-chip");
     status.add_css_class("dim-label");
+
+    let remove_icon = gtk::Image::from_icon_name("window-close-symbolic");
+    remove_icon.set_pixel_size(14);
+    let remove = gtk::Button::new();
+    remove.set_child(Some(&remove_icon));
+    remove.add_css_class("flat");
+    remove.add_css_class("clipper-row-remove");
+    remove.set_valign(gtk::Align::Center);
+    remove.set_tooltip_text(Some("Remove from queue"));
 
     let row = adw::ActionRow::builder().title(title).subtitle(url).build();
     row.add_prefix(&icon);
+    row.add_suffix(&remove);
     row.add_suffix(&status);
+    row.set_tooltip_text(Some(&format!("{} · {url}", source.label())));
+
+    let reveal: Rc<RefCell<Option<PathBuf>>> = Rc::new(RefCell::new(None));
+    row.connect_activate({
+        let reveal = Rc::clone(&reveal);
+        move |row| {
+            if let Some(path) = reveal.borrow().as_ref() {
+                config::reveal_in_file_manager(path);
+            } else {
+                row.set_activatable(false);
+            }
+        }
+    });
 
     QueueRow {
         row,
+        remove,
         status,
         url: url.to_string(),
+        reveal,
     }
 }

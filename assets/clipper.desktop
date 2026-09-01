@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Clipper
-GenericName=Twitch Clip Downloader
-Comment=Download Twitch Clips in original available quality
+GenericName=Twitch Clip & YouTube Downloader
+Comment=Download Twitch Clips and YouTube videos in original available quality
 Exec=clipper
 Icon=clipper
 Terminal=false

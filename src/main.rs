@@ -1,11 +1,31 @@
 mod app;
+mod config;
 mod error;
+mod link;
 mod state;
-mod twitch;
 mod ui;
 
 use gtk::gio::prelude::{ApplicationExt, ApplicationExtManual};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+/// Loads the app's small accent-and-shape stylesheet on top of whatever
+/// system theme is active. Every color it uses is one of libadwaita's own
+/// named colors, so light/dark mode and the user's accent color still
+/// come from the platform — this only adds rounding, elevation and the
+/// tonal "chip" details.
+fn load_css() {
+    let provider = gtk::CssProvider::new();
+    provider.load_from_string(include_str!("../assets/style.css"));
+
+    match gtk::gdk::Display::default() {
+        Some(display) => gtk::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        ),
+        None => tracing::warn!("no default display available; skipping custom styling"),
+    }
+}
 
 fn main() -> gtk::glib::ExitCode {
     tracing_subscriber::registry()
@@ -20,6 +40,7 @@ fn main() -> gtk::glib::ExitCode {
         .application_id("io.github.clipper")
         .build();
 
+    app.connect_startup(|_| load_css());
     app.connect_activate(app::build_ui);
     app.run()
 }

@@ -1,8 +1,8 @@
 # Maintainer: YOUR NAME <YOUR EMAIL>
 pkgname=clipper
-pkgver=1.2.0
+pkgver=1.3.0
 pkgrel=1
-pkgdesc='Minimal native GTK4/libadwaita Twitch Clip downloader'
+pkgdesc='Minimal native GTK4/libadwaita downloader for Twitch Clips and YouTube videos'
 arch=('x86_64')
 url='https://github.com/YOUR_GITHUB_USERNAME/clipper'
 license=('MIT')

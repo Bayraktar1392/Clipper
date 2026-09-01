@@ -2,7 +2,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
-    #[error("Invalid Twitch Clip URL")]
+    #[error("Invalid or unsupported link")]
     InvalidUrl,
     #[error("Required executable was not found: {0}")]
     MissingDependency(String),

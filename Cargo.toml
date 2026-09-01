@@ -1,14 +1,14 @@
 [package]
 name = "clipper"
-version = "1.2.0"
+version = "2.0.0"
 edition = "2024"
 rust-version = "1.92"
 license = "MIT"
-description = "Minimal native GTK4/libadwaita Twitch Clip downloader with automatic URL queueing"
+description = "Minimal native GTK4/libadwaita downloader for Twitch Clips and YouTube videos with automatic URL queueing"
 
 [dependencies]
 adw = { package = "libadwaita", version = "0.9", features = ["v1_4"] }
-gtk = { package = "gtk4", version = "0.11", features = ["v4_10"] }
+gtk = { package = "gtk4", version = "0.11", features = ["v4_12"] }
 thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "fs"] }
 tracing = "0.1"
