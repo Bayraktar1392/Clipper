@@ -1,8 +1,8 @@
 pkgbase = clipper
 	pkgdesc = Minimal native GTK4/libadwaita downloader for Twitch Clips and YouTube videos
-	pkgver = 1.3.0
+	pkgver = 2.0.0
 	pkgrel = 1
-	url = https://github.com/YOUR_GITHUB_USERNAME/clipper
+	url = https://github.com/Bayraktar1392/Clipper
 	arch = x86_64
 	license = MIT
 	makedepends = rust
@@ -11,7 +11,7 @@ pkgbase = clipper
 	depends = libadwaita
 	depends = yt-dlp
 	depends = ffmpeg
-	source = https://github.com/YOUR_GITHUB_USERNAME/clipper/archive/refs/tags/v1.3.0.tar.gz
+	source = https://github.com/Bayraktar1392/Clipper/archive/refs/tags/v2.0.0.tar.gz
 	sha256sums = SKIP
 
 pkgname = clipper

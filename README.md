@@ -52,13 +52,13 @@ clipper
 
 ## GitHub release
 
-This repository is prepared for GitHub Actions. Push a semantic version tag such as `v1.3.0` and the release workflow builds the application and publishes the source archive + checksum.
+This repository is prepared for GitHub Actions. Push a semantic version tag such as `v2.0.0` and the release workflow builds the application and publishes the source archive + checksum.
 
 ## AUR
 
 The AUR packaging files are in `packaging/aur/`.
 
-Before submission, replace `YOUR_GITHUB_USERNAME` and maintainer metadata in `packaging/aur/PKGBUILD`, create the GitHub release, replace the source checksum, and regenerate `.SRCINFO`:
+Before submission, create the GitHub release, replace the source checksum in `packaging/aur/PKGBUILD`, and regenerate `.SRCINFO`:
 
 ```bash
 cd packaging/aur

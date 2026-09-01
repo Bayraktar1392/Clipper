@@ -8,11 +8,10 @@ mod ui;
 use gtk::gio::prelude::{ApplicationExt, ApplicationExtManual};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Loads the app's small accent-and-shape stylesheet on top of whatever
-/// system theme is active. Every color it uses is one of libadwaita's own
-/// named colors, so light/dark mode and the user's accent color still
-/// come from the platform — this only adds rounding, elevation and the
-/// tonal "chip" details.
+/// Loads the app's minimal stylesheet on top of whatever system theme is
+/// active. Every color it uses is one of libadwaita's own named colors, so
+/// light/dark mode and the user's accent color still come from the platform —
+/// the stylesheet only adjusts a few shapes and motion cues.
 fn load_css() {
     let provider = gtk::CssProvider::new();
     provider.load_from_string(include_str!("../assets/style.css"));
