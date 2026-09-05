@@ -82,14 +82,14 @@ pub async fn download_media(
 }
 
 /// Returns the optimal yt-dlp format selector for the given source.
-/// - Twitch clips: single combined HLS stream, use "best"
+/// - Twitch clips: HLS with multiple qualities, let yt-dlp auto-select (no -f flag)
 /// - YouTube: separate video/audio tracks available, use "bestvideo*+bestaudio/best"
-/// - TikTok: single combined stream, use "best"
-fn format_selector(source: Source) -> &'static str {
+/// - TikTok: single combined stream, use "b" (best pre-merged, no warning)
+fn format_selector(source: Source) -> Option<&'static str> {
     match source {
-        Source::Twitch => "best",
-        Source::YouTube => "bestvideo*+bestaudio/best",
-        Source::TikTok => "best",
+        Source::Twitch => None,
+        Source::YouTube => Some("bestvideo*+bestaudio/best"),
+        Source::TikTok => Some("b"),
     }
 }
 
@@ -123,8 +123,6 @@ fn spawn_yt_dlp(url: &str, download_dir: &Path, source: Source) -> AppResult<Chi
         "10",
         "--concurrent-fragments",
         "8",
-        "--format",
-        format,
         "--paths",
     ])
     .arg(format!("home:{}", download_dir.display()))
@@ -136,6 +134,11 @@ fn spawn_yt_dlp(url: &str, download_dir: &Path, source: Source) -> AppResult<Chi
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .kill_on_drop(true);
+
+    // Add format selector only when specified (Twitch: None = auto-select)
+    if let Some(fmt) = format {
+        cmd.args(["--format", fmt]);
+    }
 
     // Only remux for YouTube (often webm/mkv), Twitch/TikTok are usually already mp4
     if remux {
