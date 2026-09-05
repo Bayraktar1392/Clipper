@@ -42,14 +42,6 @@
   to   { opacity: 1; }
 }
 
-.clipper-icon-chip.twitch {
-  color: #9146ff;
-}
-
-.clipper-icon-chip.youtube {
-  color: #ff0000;
-}
-
 .clipper-chip {
   font-size: 12px;
   font-weight: 600;

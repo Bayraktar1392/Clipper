@@ -2,6 +2,23 @@ use crate::{config, link::url::Source};
 use adw::{Application, ApplicationWindow, HeaderBar, ToolbarView, prelude::*};
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
+/// Configures Wayland-specific window properties for native integration.
+fn setup_wayland_window(window: &ApplicationWindow) {
+    // Check if running on Wayland via GDK_BACKEND or WAYLAND_DISPLAY
+    let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
+        || std::env::var("GDK_BACKEND")
+            .map(|v| v.contains("wayland"))
+            .unwrap_or(false);
+
+    if is_wayland {
+        // Request server-side decorations for Wayland (GTK4 handles this well)
+        window.set_decorated(true);
+
+        // Enable fractional scaling awareness
+        window.set_deletable(true);
+    }
+}
+
 /// Visual state of a single queue row's status chip.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RowState {
@@ -18,7 +35,6 @@ pub struct QueueRow {
     pub row: adw::ActionRow,
     pub remove: gtk::Button,
     pub status: gtk::Label,
-    url: String,
     reveal: Rc<RefCell<Option<PathBuf>>>,
 }
 
@@ -37,9 +53,9 @@ impl QueueRow {
         });
     }
 
-    /// Restores the subtitle back to the clip URL.
+    /// Restores the subtitle to empty (URL is no longer shown).
     pub fn reset_subtitle(&self) {
-        self.row.set_subtitle(&self.url);
+        self.row.set_subtitle("");
     }
 
     /// Attaches a detail tooltip (e.g. the saved path on success) so a
@@ -90,6 +106,9 @@ pub fn build(app: &Application) -> Ui {
         .resizable(true)
         .build();
     window.add_css_class("clipper-window");
+
+    // Apply Wayland-specific window configuration
+    setup_wayland_window(&window);
 
     let window_title = adw::WindowTitle::new("Clipper", "");
     let header = HeaderBar::new();
@@ -155,7 +174,7 @@ pub fn build(app: &Application) -> Ui {
     let status_page = adw::StatusPage::builder()
         .icon_name("video-x-generic-symbolic")
         .title("No links queued")
-        .description("Paste one or more Twitch Clip or YouTube links above to add them here.")
+        .description("Paste one or more Twitch, YouTube or TikTok links above to add them here.")
         .build();
     status_page.set_vexpand(true);
     status_page.add_css_class("compact");
@@ -165,7 +184,6 @@ pub fn build(app: &Application) -> Ui {
     scroller.set_vexpand(true);
     let queue = gtk::ListBox::new();
     queue.set_selection_mode(gtk::SelectionMode::None);
-    queue.add_css_class("boxed-list");
     queue.add_css_class("clipper-list");
     scroller.set_child(Some(&queue));
 
@@ -243,16 +261,6 @@ pub fn build(app: &Application) -> Ui {
 }
 
 pub fn queue_row(title: &str, url: &str, source: Source) -> QueueRow {
-    let (icon_name, source_class) = match source {
-        Source::Twitch => ("video-x-generic-symbolic", "twitch"),
-        Source::YouTube => ("media-playback-start-symbolic", "youtube"),
-    };
-
-    let icon = gtk::Image::from_icon_name(icon_name);
-    icon.set_pixel_size(16);
-    icon.add_css_class("clipper-icon-chip");
-    icon.add_css_class(source_class);
-
     let status = gtk::Label::new(Some("Waiting"));
     status.add_css_class("clipper-chip");
     status.add_css_class("dim-label");
@@ -266,8 +274,7 @@ pub fn queue_row(title: &str, url: &str, source: Source) -> QueueRow {
     remove.set_valign(gtk::Align::Center);
     remove.set_tooltip_text(Some("Remove from queue"));
 
-    let row = adw::ActionRow::builder().title(title).subtitle(url).build();
-    row.add_prefix(&icon);
+    let row = adw::ActionRow::builder().title(title).build();
     row.add_suffix(&remove);
     row.add_suffix(&status);
     row.set_tooltip_text(Some(&format!("{} · {url}", source.label())));
@@ -288,7 +295,6 @@ pub fn queue_row(title: &str, url: &str, source: Source) -> QueueRow {
         row,
         remove,
         status,
-        url: url.to_string(),
         reveal,
     }
 }

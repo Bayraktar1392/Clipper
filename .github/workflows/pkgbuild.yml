@@ -1,0 +1,49 @@
+name: PKGBUILD Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'PKGBUILD'
+      - '.github/workflows/pkgbuild.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'PKGBUILD'
+      - '.github/workflows/pkgbuild.yml'
+
+jobs:
+  lint:
+    name: Lint PKGBUILD
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install namcap
+        run: |
+          sudo pacman -Sy --noconfirm namcap
+      - name: Check PKGBUILD syntax
+        run: |
+          bash -n PKGBUILD
+      - name: Run namcap
+        run: |
+          namcap PKGBUILD || true
+
+  test-build:
+    name: Test Build in Clean Arch Container
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Arch Linux container
+        uses: addnab/docker-run-action@v3
+        with:
+          image: archlinux:latest
+          options: --user root
+          run: |
+            pacman -Sy --noconfirm base-devel git rust cargo pkgconf gtk4 libadwaita yt-dlp
+            useradd -m builder
+            cd /home/builder
+            sudo -u builder git clone https://github.com/Bayraktar1392/Clipper.git
+            cd Clipper
+            sudo -u builder makepkg --syncdeps --noconfirm --noprogressbar
+            ls -la *.pkg.tar.zst

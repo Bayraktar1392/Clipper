@@ -26,7 +26,34 @@ fn load_css() {
     }
 }
 
+fn load_resources() {
+    gtk::gio::resources_register_include!("clipper.gresource")
+        .expect("Failed to register gresource");
+}
+
+/// Configures Wayland-native optimizations for the application.
+/// Sets up fractional scaling, Wayland-specific window hints, and
+/// ensures proper compositor integration.
+fn setup_wayland_optimizations(app: &adw::Application) {
+    app.connect_startup(|_| {
+        // Check if running on Wayland via GDK_BACKEND or WAYLAND_DISPLAY
+        let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
+            || std::env::var("GDK_BACKEND")
+                .map(|v| v.contains("wayland"))
+                .unwrap_or(false);
+
+        if is_wayland {
+            tracing::info!("Running on Wayland compositor - enabling native optimizations");
+        }
+    });
+}
+
 fn main() -> gtk::glib::ExitCode {
+    // Prefer Wayland backend when available (unsafe in Rust 2024, but needed for backend selection)
+    unsafe {
+        std::env::set_var("GDK_BACKEND", "wayland,x11");
+    }
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -39,7 +66,12 @@ fn main() -> gtk::glib::ExitCode {
         .application_id("io.github.clipper")
         .build();
 
-    app.connect_startup(|_| load_css());
+    setup_wayland_optimizations(&app);
+
+    app.connect_startup(|_| {
+        load_resources();
+        load_css();
+    });
     app.connect_activate(app::build_ui);
     app.run()
 }

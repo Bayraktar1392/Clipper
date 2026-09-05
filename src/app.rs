@@ -127,7 +127,10 @@ pub fn build_ui(app: &adw::Application) {
             *prev_urls.borrow_mut() = urls;
 
             if invalid > 0 && count == 0 {
-                set_hint(&ui.hint, Some("No valid Twitch or YouTube links found."));
+                set_hint(
+                    &ui.hint,
+                    Some("No valid Twitch, YouTube or TikTok links found."),
+                );
             } else if invalid > 0 {
                 set_hint(
                     &ui.hint,
@@ -387,7 +390,7 @@ pub fn build_ui(app: &adw::Application) {
             let entries = queue.borrow().clone();
             if entries.is_empty() {
                 ui.toast_overlay.add_toast(adw::Toast::new(
-                    "Paste one or more Twitch or YouTube links first",
+                    "Paste one or more Twitch, YouTube or TikTok links first",
                 ));
                 return;
             }
@@ -463,8 +466,7 @@ fn update_overall_progress(
     let overall = state.iter().sum::<f64>() / (state.len() as f64 * 100.0);
     let overall = overall.clamp(0.0, 1.0);
     ui.progress.set_fraction(overall);
-    ui.progress
-        .set_text(Some(&format!("{:.1}%", overall * 100.0)));
+    ui.progress.set_text(None);
 
     // Aggregate the raw numbers for the status line: sum the active
     // transfer speeds and the remaining bytes, then derive a combined ETA.
@@ -576,7 +578,7 @@ fn remove_url_from_buffer(buffer: &gtk::TextBuffer, target: &str) {
     buffer.set_text(&result.join("\n"));
 }
 
-/// Scans dropped text for Twitch/YouTube links that aren't already in the
+/// Scans dropped text for Twitch/YouTube/TikTok links that aren't already in the
 /// input, and appends any it finds.
 fn ingest_text(ui: &window::Ui, text: &str) {
     let buffer = ui.url_view.buffer();

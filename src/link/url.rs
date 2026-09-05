@@ -2,12 +2,13 @@ use crate::error::{AppError, AppResult};
 use url::Url;
 
 /// Which platform a validated link belongs to. Used to pick an icon and a
-/// small brand-tinted chip in the queue list so a mixed batch of Twitch
-/// and YouTube links stays easy to scan at a glance.
+/// small brand-tinted chip in the queue list so a mixed batch of Twitch,
+/// YouTube, and TikTok links stays easy to scan at a glance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Source {
     Twitch,
     YouTube,
+    TikTok,
 }
 
 impl Source {
@@ -15,14 +16,15 @@ impl Source {
         match self {
             Source::Twitch => "Twitch",
             Source::YouTube => "YouTube",
+            Source::TikTok => "TikTok",
         }
     }
 }
 
-/// Validates a single token as either a Twitch Clip link or a YouTube
-/// video/short link. Anything else — channel pages, playlists, the
-/// homepage, non-clip Twitch URLs — is rejected so the queue only ever
-/// contains links `yt-dlp` can turn into exactly one file.
+/// Validates a single token as either a Twitch Clip link, a YouTube
+/// video/short link, or a TikTok video link. Anything else — channel pages,
+/// playlists, the homepage, non-clip Twitch URLs — is rejected so the queue
+/// only ever contains links `yt-dlp` can turn into exactly one file.
 pub fn validate_media_url(raw: &str) -> AppResult<(Url, Source)> {
     let url = Url::parse(raw.trim()).map_err(|_| AppError::InvalidUrl)?;
     if url.scheme() != "https" {
@@ -44,6 +46,8 @@ pub fn validate_media_url(raw: &str) -> AppResult<(Url, Source)> {
         Ok((url, Source::Twitch))
     } else if is_youtube_video(&host, &segments, &url) {
         Ok((url, Source::YouTube))
+    } else if is_tiktok_video(&host, &segments) {
+        Ok((url, Source::TikTok))
     } else {
         Err(AppError::InvalidUrl)
     }
@@ -80,6 +84,21 @@ fn is_youtube_video(host: &str, segments: &[&str], url: &Url) -> bool {
     }
 }
 
+fn is_tiktok_video(host: &str, segments: &[&str]) -> bool {
+    match host {
+        "vm.tiktok.com" | "vt.tiktok.com" => segments.len() == 1 && !segments[0].is_empty(),
+        "tiktok.com" | "www.tiktok.com" | "m.tiktok.com" => match segments {
+            [first, second] if matches!(*first, "t" | "v" | "embed") => !second.is_empty(),
+            [first, second, third] if *first == "embed" && *second == "v2" => !third.is_empty(),
+            [first, second, third] if first.starts_with('@') && *second == "video" => {
+                !third.is_empty()
+            }
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
 /// A short, human-friendly label for a validated link — the clip slug or
 /// video ID — so queue rows show something more useful than a raw URL.
 pub fn media_display_name(raw: &str, source: Source) -> String {
@@ -94,6 +113,9 @@ pub fn media_display_name(raw: &str, source: Source) -> String {
             .map(|(_, value)| value.into_owned())
             .or_else(|| last_path_segment(&url)),
         Source::Twitch => last_path_segment(&url),
+        Source::TikTok => {
+            last_path_segment(&url).map(|s| s.strip_suffix(".html").unwrap_or(&s).to_string())
+        }
     };
 
     id.filter(|segment| !segment.is_empty())
@@ -203,5 +225,56 @@ mod tests {
     #[test]
     fn falls_back_to_raw_string_when_unparsable() {
         assert_eq!(media_display_name("not a url", Source::Twitch), "not a url");
+    }
+
+    #[test]
+    fn accepts_tiktok_short_links() {
+        assert!(validate_media_url("https://vm.tiktok.com/ZM8ABCDEF/").is_ok());
+        assert!(validate_media_url("https://vt.tiktok.com/ZM8ABCDEF/").is_ok());
+    }
+
+    #[test]
+    fn accepts_tiktok_standard_links() {
+        assert!(validate_media_url("https://www.tiktok.com/@user/video/1234567890").is_ok());
+        assert!(validate_media_url("https://www.tiktok.com/t/1234567890").is_ok());
+        assert!(validate_media_url("https://www.tiktok.com/v/1234567890").is_ok());
+        assert!(validate_media_url("https://www.tiktok.com/embed/1234567890").is_ok());
+        assert!(validate_media_url("https://www.tiktok.com/embed/v2/1234567890").is_ok());
+        assert!(validate_media_url("https://tiktok.com/@user/video/1234567890").is_ok());
+        assert!(validate_media_url("https://m.tiktok.com/@user/video/1234567890").is_ok());
+    }
+
+    #[test]
+    fn rejects_tiktok_profile_and_other_pages() {
+        assert!(validate_media_url("https://www.tiktok.com/@user").is_err());
+        assert!(validate_media_url("https://www.tiktok.com/").is_err());
+        assert!(validate_media_url("https://www.tiktok.com/discover").is_err());
+        assert!(validate_media_url("https://www.tiktok.com/tag/sometag").is_err());
+    }
+
+    #[test]
+    fn extracts_display_name_for_tiktok() {
+        assert_eq!(
+            media_display_name("https://vm.tiktok.com/ZM8ABCDEF/", Source::TikTok),
+            "ZM8ABCDEF"
+        );
+        assert_eq!(
+            media_display_name(
+                "https://www.tiktok.com/@user/video/1234567890",
+                Source::TikTok
+            ),
+            "1234567890"
+        );
+        assert_eq!(
+            media_display_name("https://www.tiktok.com/t/1234567890", Source::TikTok),
+            "1234567890"
+        );
+        assert_eq!(
+            media_display_name(
+                "https://m.tiktok.com/@user/video/1234567890.html",
+                Source::TikTok
+            ),
+            "1234567890"
+        );
     }
 }

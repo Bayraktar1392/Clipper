@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/io/github/clipper">
+    <file>icons/hicolor/scalable/apps/clipper.svg</file>
+  </gresource>
+</gresources>
