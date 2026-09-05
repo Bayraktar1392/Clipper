@@ -17,7 +17,7 @@ jobs:
     name: Lint PKGBUILD
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install namcap
         run: |
           sudo pacman -Sy --noconfirm namcap
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Arch Linux container
         uses: addnab/docker-run-action@v3
         with:
