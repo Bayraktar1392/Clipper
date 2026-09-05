@@ -1,6 +1,6 @@
 # Maintainer: Bayraktar1392 <bayraktar1392@proton.me>
 pkgname=clipper
-pkgver=2.0.0
+pkgver=3.0.1
 pkgrel=1
 pkgdesc="Minimal native GTK4/libadwaita downloader for Twitch Clips, YouTube and TikTok videos with automatic URL queueing"
 arch=('x86_64' 'aarch64')
@@ -20,12 +20,9 @@ depends=(
 )
 makedepends=(
     'rust'
-    'cargo'
     'git'
     'meson'
-    'glib2-devel'
-    'gtk4-devel'
-    'libadwaita-devel'
+    'pkgconf'
 )
 optdepends=(
     'libnotify: desktop notifications'
