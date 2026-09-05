@@ -1,5 +1,6 @@
 use crate::{
     error::{AppError, AppResult},
+    link::url::Source,
     state::DownloadStats,
 };
 use std::{
@@ -24,12 +25,13 @@ const STDERR_TAIL_LINES: usize = 12;
 pub async fn download_media(
     url: &str,
     download_dir: &Path,
+    source: Source,
     stats_tx: &mpsc::UnboundedSender<DownloadStats>,
     mut cancel_rx: watch::Receiver<bool>,
 ) -> AppResult<PathBuf> {
     tokio::fs::create_dir_all(download_dir).await?;
 
-    let mut child = spawn_yt_dlp(url, download_dir)?;
+    let mut child = spawn_yt_dlp(url, download_dir, source)?;
     let stdout = child
         .stdout
         .take()
@@ -79,50 +81,74 @@ pub async fn download_media(
     })
 }
 
-fn spawn_yt_dlp(url: &str, download_dir: &Path) -> AppResult<Child> {
-    Command::new("yt-dlp")
-        .args([
-            "--no-playlist",
-            "--newline",
-            "--progress",
-            "--progress-delta",
-            "0.2",
-            "--progress-template",
-            "download:%(progress.percent)s|%(progress.speed)s|%(progress.eta)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s",
-            "--retries",
-            "10",
-            "--fragment-retries",
-            "10",
-            "--concurrent-fragments",
-            "8",
-            "--format",
-            "bestvideo*+bestaudio/best",
-            "--paths",
-        ])
-        .arg(format!("home:{}", download_dir.display()))
-        .args(["--output", "%(title).180s [%(id)s].%(ext)s", "--print", "after_move:filepath"])
-        // Keep the output clean and self-contained: never drop a `.info.json`
-        // metadata file beside the video, and don't fetch separate subtitle
-        // files. Videos that only carry burned-in on-screen text (common on
-        // Twitch clips) can't be de-OCR'd, but any optional sidecar tracks are
-        // skipped, so the result is the bare, subtitle-free media.
-        .args(["--no-write-info-json", "--no-write-subs", "--no-embed-subs"])
-        // Force a single common container so the result is one predictable
-        // file (no loose `.webm`/`.m4a` leftovers from a video+audio merge).
-        .args(["--remux-video", "mp4"])
-        .arg(url)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()
-        .map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
-                AppError::MissingDependency("yt-dlp".into())
-            } else {
-                AppError::ProcessStart("yt-dlp".into(), e.to_string())
-            }
-        })
+/// Returns the optimal yt-dlp format selector for the given source.
+/// - Twitch clips: single combined HLS stream, use "best"
+/// - YouTube: separate video/audio tracks available, use "bestvideo*+bestaudio/best"
+/// - TikTok: single combined stream, use "best"
+fn format_selector(source: Source) -> &'static str {
+    match source {
+        Source::Twitch => "best",
+        Source::YouTube => "bestvideo*+bestaudio/best",
+        Source::TikTok => "best",
+    }
+}
+
+/// Returns whether to remux to mp4 for the given source.
+/// Twitch and TikTok clips are often already in mp4 or compatible containers.
+/// YouTube often needs remux from webm/mkv to mp4.
+fn should_remux(source: Source) -> bool {
+    match source {
+        Source::Twitch => false,
+        Source::YouTube => true,
+        Source::TikTok => false,
+    }
+}
+
+fn spawn_yt_dlp(url: &str, download_dir: &Path, source: Source) -> AppResult<Child> {
+    let format = format_selector(source);
+    let remux = should_remux(source);
+
+    let mut cmd = Command::new("yt-dlp");
+    cmd.args([
+        "--no-playlist",
+        "--newline",
+        "--progress",
+        "--progress-delta",
+        "0.2",
+        "--progress-template",
+        "download:%(progress.percent)s|%(progress.speed)s|%(progress.eta)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s",
+        "--retries",
+        "10",
+        "--fragment-retries",
+        "10",
+        "--concurrent-fragments",
+        "8",
+        "--format",
+        format,
+        "--paths",
+    ])
+    .arg(format!("home:{}", download_dir.display()))
+    .args(["--output", "%(title).180s [%(id)s].%(ext)s", "--print", "after_move:filepath"])
+    // Keep the output clean: no metadata, no subtitles
+    .args(["--no-write-info-json", "--no-write-subs", "--no-embed-subs"])
+    .arg(url)
+    .stdin(Stdio::null())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .kill_on_drop(true);
+
+    // Only remux for YouTube (often webm/mkv), Twitch/TikTok are usually already mp4
+    if remux {
+        cmd.args(["--remux-video", "mp4"]);
+    }
+
+    cmd.spawn().map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            AppError::MissingDependency("yt-dlp".into())
+        } else {
+            AppError::ProcessStart("yt-dlp".into(), e.to_string())
+        }
+    })
 }
 
 /// Kills the child and stops the reader tasks after a cancellation request.

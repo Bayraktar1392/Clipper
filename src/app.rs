@@ -679,8 +679,14 @@ async fn run_queue(
                 }
             });
 
-            let result =
-                downloader::download_media(&entry.url, &download_dir, &stats_tx, cancel_rx).await;
+            let result = downloader::download_media(
+                &entry.url,
+                &download_dir,
+                entry.source,
+                &stats_tx,
+                cancel_rx,
+            )
+            .await;
             drop(stats_tx);
             let _ = stats_task.await;
 
