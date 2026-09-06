@@ -1,6 +1,6 @@
 # Maintainer: Bayraktar1392 <bayraktar1392@proton.me>
 pkgname=clipper
-pkgver=3.0.2
+pkgver=3.0.3
 pkgrel=1
 pkgdesc="Minimal native GTK4/libadwaita downloader for Twitch Clips, YouTube and TikTok videos with automatic URL queueing"
 arch=('x86_64' 'aarch64')
@@ -39,7 +39,7 @@ _srcdir="Clipper-${pkgver}"
 
 prepare() {
     cd "${_srcdir}"
-    cargo fetch --locked --target "$(rustc -vV | sed -n 's/^host: //p')"
+    cargo fetch --target "$(rustc -vV | sed -n 's/^host: //p')"
 }
 
 build() {
