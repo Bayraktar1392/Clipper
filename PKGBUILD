@@ -1,6 +1,6 @@
 # Maintainer: Bayraktar1392 <bayraktar1392@proton.me>
 pkgname=clipper
-pkgver=3.0.1
+pkgver=3.0.2
 pkgrel=1
 pkgdesc="Minimal native GTK4/libadwaita downloader for Twitch Clips, YouTube and TikTok videos with automatic URL queueing"
 arch=('x86_64' 'aarch64')
@@ -35,26 +35,28 @@ conflicts=('clipper-git')
 source=("${pkgname}-${pkgver}.tar.gz::https://github.com/Bayraktar1392/Clipper/archive/refs/tags/v${pkgver}.tar.gz")
 sha256sums=('SKIP')
 
+_srcdir="Clipper-${pkgver}"
+
 prepare() {
-    cd "${pkgname}-${pkgver}"
+    cd "${_srcdir}"
     cargo fetch --locked --target "$(rustc -vV | sed -n 's/^host: //p')"
 }
 
 build() {
-    cd "${pkgname}-${pkgver}"
+    cd "${_srcdir}"
     export RUSTUP_TOOLCHAIN=stable
     export CARGO_TARGET_DIR=target
     cargo build --frozen --release --all-features
 }
 
 check() {
-    cd "${pkgname}-${pkgver}"
+    cd "${_srcdir}"
     export RUSTUP_TOOLCHAIN=stable
     cargo test --frozen --all-features
 }
 
 package() {
-    cd "${pkgname}-${pkgver}"
+    cd "${_srcdir}"
     
     # Install binary
     install -Dm755 "target/release/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
